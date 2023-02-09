@@ -11,18 +11,54 @@ html, body, #root {
 }
 /* This makes the `<div>` that wraps our whole app use CSS Grid to display three sections: the header, content, and footer. */
 #root {
-    display: grid;
-    grid-template-columns: 10% 1fr;
-    /* The header will be automatically sized, the footer will be as small as possible, and the content will take up the rest of the space in the middle */
-    grid-template-areas: "header main";
+    display: flex;
+    flex-direction: column;
 }
-header {
-    grid-area: header;
+.navbar {
     position: fixed;
+    background-color: #0d075f;
+    overflow: hidden;
+    width: 100%;
+}
+
+.navbar img
+{
+    max-width: 50px;
+    max-height: 50px;
+}
+
+.navbar .navbar_links_closed
+{
+    display: none;
+}
+
+.navbar .navbar_links_open
+{
+    display: block;
+}
+
+.navbar .navbar_links_open a
+{
+    color: white;
+    padding: 1px;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+    border: #000;
+    border-top-style: solid;
+}
+
+.navbar button
+{
+    display: block;
+    right: 0;
+    top: 0;
+    position: absolute;
     height: 100%;
 }
+
 main {
-    grid-area: main;
+    margin-top: 50px;
 }
 
 ul
@@ -57,50 +93,14 @@ ul
 {
     position: fixed;
     top: 0;
+    left: 50px;
+    width: 60%;
 }
 
 .search-bar input {
     max-height: 25px; 
     margin: 5px;
-}
-
-
-.navbar
-{
-    background-color: #0d075f;
-    height: 100%;
-}
-
-.navbar img
-{
-    /* fix image width to stay in the div somehow */
-    max-width: 100px;
-}
-
-.navbar ul
-{
-    padding: 0;
-    margin: 0;
-}
-
-.navbar li a
-{
-    display: block;
-    background-color: white;
-    border-radius: 4px;
-    text-decoration: none;
-    text-align: center;
-    margin: 5px;
-    color: #000;
-    word-break: break-all;
-}
-
-@media screen and (max-width: 320px) {
-    .navbar
-    {
-        visibility: hidden;
-        display: none;
-    }
+    width: 100%;
 }
 
 #confirm_dialog

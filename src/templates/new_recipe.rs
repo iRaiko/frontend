@@ -5,7 +5,7 @@ use perseus::{
 use serde::{Deserialize, Serialize};
 use sycamore::{prelude::*, rt::JsCast};
 use web_sys::{HtmlFormElement, HtmlDialogElement};
-use crate::capsules::navbar::NAVBAR;
+use crate::{capsules::navbar::NAVBAR, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, ADD_INGREDIENTS_ENDPOINT};
 use crate::components::layout::Layout;
 use std::borrow::Borrow;
 
@@ -19,7 +19,17 @@ pub fn get_template<G: Html>() -> Template<G> {
 #[auto_scope]
 fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G> 
 {
-    let FormDataRx { long: props, ingredients, units , catagories} = props;
+    let FormDataRx { 
+        long: props, 
+        ingredients, 
+        units , 
+        catagories,
+        catagories_endpoint,
+        units_endpoint,
+        ingredients_endpoint,
+        recipes_endpoint,
+        add_ingredient_to_recipe_endpoint,
+    } = props;
     let name_ref = create_ref(cx, &props.recipe.name);
     let catagory_ref = create_ref(cx, &props.recipe.catagory_name);
     let amount_str = create_signal(cx, props.recipe.base_amount.get().to_string());
@@ -195,24 +205,24 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                         if !catagories.get().iter().any(|x| x.name == *props.recipe.catagory_name.get())
                         {
                             let catagory = Catagory { name: (*props.recipe.catagory_name.get()).clone()};
-                            let resp = gloo_net::http::Request::post("http://127.0.0.1:8000/catagories").mode(gloo_net::http::RequestMode::NoCors).json(&catagory).unwrap().send().await.unwrap();
+                            let resp = gloo_net::http::Request::post(&catagories_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&catagory).unwrap().send().await.unwrap();
                         }        
                         for i in &*new_ingredients_signal.get()
                         {
                             let ingredient = Ingredient { name: i.clone()};
-                            let resp = gloo_net::http::Request::post("http://127.0.0.1:8000/ingredients").mode(gloo_net::http::RequestMode::NoCors).json(&ingredient).unwrap().send().await.unwrap();
+                            let resp = gloo_net::http::Request::post(&ingredients_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&ingredient).unwrap().send().await.unwrap();
                         }
                         for i in &*new_units_signal.get()
                         {
                             let unit = Unit { name: i.clone()};
-                            let resp = gloo_net::http::Request::post("http://127.0.0.1:8000/units").mode(gloo_net::http::RequestMode::NoCors).json(&unit).unwrap().send().await.unwrap();
+                            let resp = gloo_net::http::Request::post(&units_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&unit).unwrap().send().await.unwrap();
                         }
                         use perseus::state::MakeUnrx;
                         let t = props.clone().make_unrx();
-                        let resp = gloo_net::http::Request::post("http://127.0.0.1:8000/recipes").mode(gloo_net::http::RequestMode::NoCors).json(&t.recipe).unwrap().send().await.unwrap();
+                        let resp = gloo_net::http::Request::post(&recipes_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&t.recipe).unwrap().send().await.unwrap();
                         for i in &*t.ingredients
                         {
-                            let resp = gloo_net::http::Request::post("http://127.0.0.1:8000/recipes/add_ingredient").mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await.unwrap();
+                            let resp = gloo_net::http::Request::post(&add_ingredient_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await.unwrap();
                         }
 
                     });
@@ -325,19 +335,19 @@ struct IngredientListProps<'a>
 #[engine_only_fn]
 async fn get_form_build_state(_: StateGeneratorInfo<()>, _req: Request) -> Result<FormData, BlamedError<reqwest::Error>>
 {
-    let resp = reqwest::get("http://127.0.0.1:8000/catagories")
+    let resp = reqwest::get(&*CATAGORIES_ENDPOINT)
         .await?
         .text()
         .await?;
     let catagories: Vec<Catagory> = serde_json::from_str(&resp).unwrap();
 
-    let resp = reqwest::get("http://127.0.0.1:8000/ingredients")
+    let resp = reqwest::get(&*INGREDIENTS_ENDPOINT)
         .await?
         .text()
         .await?;
     let ingredients: Vec<Ingredient> = serde_json::from_str(&resp).unwrap();
 
-    let resp = reqwest::get("http://127.0.0.1:8000/units")
+    let resp = reqwest::get(&*UNITS_ENDPOINT)
         .await?
         .text()
         .await?;
@@ -361,7 +371,12 @@ async fn get_form_build_state(_: StateGeneratorInfo<()>, _req: Request) -> Resul
         long,
         ingredients,
         units,
-        catagories
+        catagories,
+        catagories_endpoint: CATAGORIES_ENDPOINT.to_string(),
+        units_endpoint: UNITS_ENDPOINT.to_string(),
+        recipes_endpoint: RECIPES_ENDPOINT.to_string(),
+        ingredients_endpoint: INGREDIENTS_ENDPOINT.to_string(),
+        add_ingredient_to_recipe_endpoint: ADD_INGREDIENTS_ENDPOINT.to_string(),
     })
 }
 
@@ -374,6 +389,11 @@ pub struct FormData
     ingredients: Vec<Ingredient>,
     units: Vec<Unit>,
     catagories: Vec<Catagory>,
+    catagories_endpoint: String,
+    units_endpoint: String,
+    recipes_endpoint: String,
+    ingredients_endpoint: String,
+    add_ingredient_to_recipe_endpoint: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

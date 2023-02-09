@@ -2,8 +2,8 @@ use perseus::prelude::*;
 use serde::{Deserialize, Serialize};
 use sycamore::prelude::*;
 use crate::components::layout::Layout;
+use crate::{RECIPES_ENDPOINT, BACKEND};
 
-const DEFAULT_IMAGE: &str = "http://127.0.0.1:8000/images/keur.jpg";
 // Initialize our app with the `perseus_warp` package's default server (fully
 // customizable)
 pub fn get_template<G: Html>() -> Template<G> {
@@ -57,7 +57,7 @@ fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
                 else { view! {cx, }})}
 
                 div {
-                    h1 { "Ingredients" }
+                    h2 { "Ingredients" }
 
                     input(
                         placeholder = props.recipe.base_amount.get().to_string(),
@@ -75,15 +75,17 @@ fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
                         }
                     )
                 }
-                 (if let Some(preparation) = &*props.recipe.preparation.get()
-                {
-                    let prep = preparation.clone();
-                    view! { cx,
-                        h1 { "Preparation" }
-                        p { (prep)}
+                div(style = "white-space: pre-line"){
+                    (if let Some(preparation) = &*props.recipe.preparation.get()
+                    {
+                        let prep = preparation.clone();
+                        view! { cx,
+                            h2 { "Preparation" }
+                            p { (prep)}
+                        }
                     }
+                    else { view! {cx, }})
                 }
-                else { view! {cx, }})
         }
     }
 }
@@ -96,7 +98,8 @@ async fn get_index_build_state(
 ) -> Result<Long, BlamedError<reqwest::Error>> {
     let split = info.path.split("/");
     let resp = reqwest::get(format!(
-        "http://127.0.0.1:8000/longs/{}",
+        "{}longs/{}",
+        &*BACKEND,
         split.last().unwrap()
     ))
     .await?
@@ -116,7 +119,7 @@ fn about_page<G: Html>(cx: Scope) -> View<G> {
 
 #[engine_only_fn]
 async fn get_paths() -> BuildPaths {
-    let resp = reqwest::get("http://127.0.0.1:8000/recipes/all_names")
+    let resp = reqwest::get(format!("{}/all_names", &*RECIPES_ENDPOINT))
         .await
         .unwrap()
         .text()

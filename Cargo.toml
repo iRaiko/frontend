@@ -15,8 +15,8 @@ gloo-net = "0.2.6"
 reqwest = { version = "0.11", features = ["json"] }
 anyhow = "1.0.68"
 lazy_static = "1.4.0"
-clap = { version = "4.0", features = ["derive"] }
 web-sys = { version = "0.3.4", features = ["HtmlFormElement", "HtmlDialogElement", "Window", "Document"]}
+dotenvy = "0.15.6"
 
 # Engine-only dependencies go here
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

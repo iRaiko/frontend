@@ -14,11 +14,11 @@ pub fn Layout<'a, G: Html>(
 
     view! { cx,
         // These elements are styled with bright colors for demonstration purposes
-        header{ (NAVBAR.widget(cx, "", ())) }
-        main(style = "padding: 1rem") {
+        div { (NAVBAR.widget(cx, "", ())) }
+        main(style = "padding: 1rem") 
+        {
             (children)
         }
-       
     }
 }
 

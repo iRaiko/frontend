@@ -1,8 +1,7 @@
-use crate::components::layout::Layout;
+use crate::{components::layout::Layout, DEFAULT_IMAGE_ENDPOINT, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT};
 use perseus::prelude::*;
 use sycamore::prelude::*;
 use serde::{Serialize, Deserialize};
-const DEFAULT_IMAGE: &str = "http://127.0.0.1:8000/images/keur.jpg";
 
 #[derive(ReactiveState, Serialize, Deserialize, Clone)]
 #[rx(alias = "IndexPageStateRx")]
@@ -11,6 +10,7 @@ pub struct IndexPageState {
     recipes: Vec<Short>,
     filters: String,
     catagory_filter: String,
+    default_img: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Eq)]
@@ -50,7 +50,7 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                             }
                             else
                             {
-                                view! { cx, td(style = "border: 1px solid #000000") { img(style = "width: 50px; height: 50px;", src=DEFAULT_IMAGE)}}
+                                view! { cx, td(style = "border: 1px solid #000000") { img(style = "width: 50px; height: 50px;", src=&props.default_img.get())}}
                             })
                             td(style = "border: 1px solid #000000; width: 100%; padding: 0;")
                             {
@@ -112,13 +112,14 @@ async fn get_build_state(
     info: StateGeneratorInfo<HelperState>,
 ) -> Result<IndexPageState, BlamedError<reqwest::Error>> {
     let resp = if info.path == "" {
-        reqwest::get("http://127.0.0.1:8000/shorts/all")
+        reqwest::get(&*SHORTS_ENDPOINT)
             .await?
             .text()
             .await?
     } else {
         reqwest::get(format!(
-            "http://127.0.0.1:8000/shorts/catagory/{}",
+            "{}/catagory/{}",
+            &*SHORTS_ENDPOINT,
             info.path
         ))
         .await?
@@ -131,6 +132,7 @@ async fn get_build_state(
         recipes,
         filters: "".to_string(),
         catagory_filter: info.path,
+        default_img: (DEFAULT_IMAGE_ENDPOINT).to_string(),
     })
 }
 
@@ -141,7 +143,7 @@ struct HelperState {
 
 #[engine_only_fn]
 async fn get_build_paths() -> BuildPaths {
-    let resp = reqwest::get("http://127.0.0.1:8000/catagories")
+    let resp = reqwest::get(&*CATAGORIES_ENDPOINT)
         .await
         .unwrap()
         .text()

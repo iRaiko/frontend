@@ -3,7 +3,7 @@ use perseus::prelude::*;
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
 
-const KEUR_IMAGE: &str = "http://127.0.0.1:8000/images/keur.jpg";
+use crate::{CATAGORIES_ENDPOINT, LOGO_ENDPOINT};
 
 lazy_static!
 {
@@ -22,32 +22,51 @@ pub fn get_capsule<G: Html>() -> Capsule<G, ()>
 #[rx(alias = "NavbarStateRx")]
 struct NavbarState
 {
-    paths: Vec<String>
+    paths: Vec<String>,
+    logo: String,
 }
 
 
 #[auto_scope]
-fn navbar_capsule<G: Html>(cx: Scope, state: &NavbarStateRx, props: ()) -> View<G>
+fn navbar_capsule<G: Html>(cx: Scope, state: &NavbarStateRx, _props: ()) -> View<G>
 {
+    let node_ref = create_node_ref(cx);
+    let mut is_closed = true;
     view ! {cx, 
-        nav(class = "navbar")
+        div(class = "navbar")
         {
-            a(href = "") { img(src = KEUR_IMAGE) }
-            ul{                    
-                li { a(href = "") { "All" }}
-                li { a(href = "new") { "New" }}
-                li { a(href = "list") { "List" }}
+            a(href = "") { img(src = &state.logo.get()) }
+
+            div(class="navbar_links_closed", ref=node_ref){                    
+                a(href = "") { "All" }
+                a(href = "new") { "New" }
+                a(href = "list") { "List" }
                 Indexed(
                     iterable= &state.paths,
                     view=|cx,x|
                     {
                         let y = x.clone();
                         view! { cx,
-                            li { a(href = y) { (x) } } 
+                            a(href = y) { (x) }
                         }
                     }
                 )
-            }
+            }            
+            button(on:click = move |_|
+            {
+                let node1 = node_ref.try_get::<HydrateNode>();
+                if let Some(node) = node1{
+                if is_closed
+                {
+                    node.set_class_name("navbar_links_open");
+                    is_closed = false;
+                }
+                else
+                {
+                    node.set_class_name("navbar_links_closed");
+                    is_closed = true;
+                }}
+            }) { "Menu" }
         }   
     }
 }
@@ -55,13 +74,13 @@ fn navbar_capsule<G: Html>(cx: Scope, state: &NavbarStateRx, props: ()) -> View<
 #[engine_only_fn]
 async fn get_build_state(_info: StateGeneratorInfo<()>) -> Result<NavbarState, BlamedError<reqwest::Error>>
 {
-    let resp = reqwest::get("http://127.0.0.1:8000/catagories")
+    let resp = reqwest::get(&*CATAGORIES_ENDPOINT)
         .await?
         .text()
         .await?;
     let catagories: Vec<Catagory> = serde_json::from_str(&resp).unwrap();
     let mut paths: Vec<String> = catagories.into_iter().map(|x| x.name).collect();
-    Ok(NavbarState { paths })
+    Ok(NavbarState { paths, logo: (LOGO_ENDPOINT).to_string() })
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Eq)]
