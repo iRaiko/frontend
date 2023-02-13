@@ -1,5 +1,5 @@
 use crate::{components::layout::Layout, DEFAULT_IMAGE_ENDPOINT, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT};
-use perseus::prelude::*;
+use perseus::{prelude::*, state::rx_collections::RxVec};
 use sycamore::prelude::*;
 use serde::{Serialize, Deserialize};
 
@@ -7,7 +7,8 @@ use serde::{Serialize, Deserialize};
 #[rx(alias = "IndexPageStateRx")]
 pub struct IndexPageState {
     pub catagories: Vec<Catagory>,
-    recipes: Vec<Short>,
+    #[rx(nested)]
+    recipes: RxVec<Short>,
     filters: String,
     catagory_filter: String,
     default_img: String,
@@ -29,62 +30,71 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                 bind:value = props.filters
             )
         }
-        div(class = "short-list") {
-            ul
-            {
-                Indexed(
-                    iterable=&props.recipes,
-                    view=move |cx, x| view! { cx,
-                    (if x.recipe.name.to_lowercase().contains(&*props.filters.get().to_lowercase())
-                    {
-                        let t = x.clone();
-                        let name = t.recipe.name.clone();
-                        let sig = create_signal(cx, t.ingredients);
-                        let image_loc = x.image.clone();
-                        view! { cx,
-                        li {
-                            (if let Some(loc) = &image_loc
+        // a(href= format!("recipe/{}", name), style = "display:block; text-decoration:none;") {
+        div
+        {
+            Indexed(
+                iterable = &props.recipes,
+                view = move |cx, short| view! { cx,
+                (if short.get().recipe.name.to_lowercase().contains(&*props.filters.get().to_lowercase())
+                {
+                    let image_loc = short.get().image.clone();
+                    let recipe_name = short.get().recipe.name.clone();
+                    let recipe_link = format!("recipe/{}", recipe_name.clone());
+                    let recipe_base_amount = short.get().recipe.base_amount.clone();
+                    let recipe_unit_name = short.get().recipe.unit_name.clone();
+                    let ingredients = create_signal(cx, short.get().ingredients.clone());
+                    view! {cx,
+                        a(class = "recipe_link", href = format!("recipe/{}", recipe_link)){
+                        table(class = "short-list")
+                        {
+                            tr
                             {
-                                let n = loc.clone();
-                                view! { cx, td(style = "border: 1px solid #000000") { img(style = "width: 50px; height: 50px;", src=n)}}
-                            }
-                            else
-                            {
-                                view! { cx, td(style = "border: 1px solid #000000") { img(style = "width: 50px; height: 50px;", src=&props.default_img.get())}}
-                            })
-                            td(style = "border: 1px solid #000000; width: 100%; padding: 0;")
-                            {
-                                a(href= format!("recipe/{}", name), style = "display:block; text-decoration:none;") {
-                                table(style = "border-collapse: collapse; width: 100%")
+                                th(class = "short-image", rowspan = 2)
                                 {
-                                    tr(style = "border-bottom: 1px solid #000000; width: 100%;")
+                                    (if let Some(ref image_location) = &image_loc
                                     {
-                                        td(style = "text-align: center;") 
-                                        { 
-                                            p(style = "margin: 1px;") { (t.recipe.name) } 
-                                            p(style = "margin: 1px;") { (format!("{} {}", t.recipe.base_amount, t.recipe.unit_name)) }
-                                        }
+                                        let location_clone = image_location.clone();
+                                        view! { cx, td { img(src=location_clone)}}
                                     }
-                                    tr
+                                    else
                                     {
-                                        td {
-                                            ul
-                                            {
-                                                Indexed(
-                                                    iterable=sig,
-                                                    view=|cx, x| view! {cx,
-                                                    li { (format!("{} {} {}", x.amount, x.unit, x.name)) } }
-                                                )
-                                            }
-                                        }
-                                    }
-                               }}
+                                        view! { cx, td { img(src=&props.default_img.get())}}
+                                    })
+                                }
+                                th
+                                {
+                                    p { (recipe_name)}
+                                    p { (format!("{} {}", recipe_base_amount, recipe_unit_name))}
+                                }
                             }
-                        }
-                    }}
-                    else { view! { cx, }})}
-                )
-            }
+                            tr
+                            {
+                                td
+                                {
+                                    ul
+                                    {
+                                        Indexed
+                                        (
+                                            iterable = ingredients,
+                                            view = |cx, ingredient| 
+                                            view! {cx, 
+                                                li { (format!("{} {} {}", ingredient.amount, ingredient.unit, ingredient.name)) } 
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        } 
+                    }
+                    }
+                }
+                else
+                {
+                    view! { cx, }
+                }
+                )}
+            )
         }
     }
     }
@@ -157,7 +167,7 @@ async fn get_build_paths() -> BuildPaths {
     paths
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, UnreactiveState)]
 pub struct Short {
     recipe: Recipe,
     ingredients: Vec<IngredientAndAmount>,
