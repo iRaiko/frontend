@@ -1,4 +1,4 @@
-use crate::{components::layout::Layout, DEFAULT_IMAGE_ENDPOINT, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT};
+use crate::{components::layout::Layout, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT, errors::Error, EndpointsRx};
 use perseus::{prelude::*, state::rx_collections::RxVec};
 use sycamore::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -11,7 +11,6 @@ pub struct IndexPageState {
     recipes: RxVec<Short>,
     filters: String,
     catagory_filter: String,
-    default_img: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Eq)]
@@ -21,6 +20,8 @@ pub struct Catagory {
 
 #[auto_scope]
 pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
+    let global_state = Reactor::<G>::from_cx(cx).get_global_state::<EndpointsRx>(cx);
+
     view! { cx,
         Layout(title = "test")
         {
@@ -30,7 +31,6 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                 bind:value = props.filters
             )
         }
-        // a(href= format!("recipe/{}", name), style = "display:block; text-decoration:none;") {
         div
         {
             Indexed(
@@ -45,21 +45,21 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                     let recipe_unit_name = short.get().recipe.unit_name.clone();
                     let ingredients = create_signal(cx, short.get().ingredients.clone());
                     view! {cx,
-                        a(class = "recipe_link", href = format!("recipe/{}", recipe_link)){
+                        a(class = "recipe_link", href = recipe_link){
                         table(class = "short-list")
                         {
                             tr
                             {
-                                th(class = "short-image", rowspan = 2)
+                                th(class = "short-image", rowspan = "2")
                                 {
                                     (if let Some(ref image_location) = &image_loc
                                     {
                                         let location_clone = image_location.clone();
-                                        view! { cx, td { img(src=location_clone)}}
+                                        view! { cx, img(src=location_clone)}
                                     }
                                     else
                                     {
-                                        view! { cx, td { img(src=&props.default_img.get())}}
+                                        view! { cx, img(src= global_state.default_image)}
                                     })
                                 }
                                 th
@@ -100,18 +100,11 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
     }
 }
 
-#[engine_only_fn]
-pub fn head(cx: Scope) -> View<SsrNode> {
-    view! { cx,
-        title { "Heuts" }
-    }
-}
-
 pub fn get_template<G: Html>() -> Template<G> {
     Template::build("index")
         .build_paths_fn(get_build_paths)
         .build_state_fn(get_build_state)
-        .revalidate_after("30s")
+        .revalidate_after("24h")
         .view_with_state(index_page)
         .incremental_generation()
         .build()
@@ -120,29 +113,28 @@ pub fn get_template<G: Html>() -> Template<G> {
 #[engine_only_fn]
 async fn get_build_state(
     info: StateGeneratorInfo<HelperState>,
-) -> Result<IndexPageState, BlamedError<reqwest::Error>> {
+) -> Result<IndexPageState, BlamedError<Error>> {
     let resp = if info.path == "" {
         reqwest::get(&*SHORTS_ENDPOINT)
-            .await?
+            .await.map_err(Error::from)?
             .text()
-            .await?
+            .await.map_err(Error::from)?
     } else {
         reqwest::get(format!(
             "{}/catagory/{}",
             &*SHORTS_ENDPOINT,
             info.path
         ))
-        .await?
+        .await.map_err(Error::from)?
         .text()
-        .await?
+        .await.map_err(Error::from)?
     };
-    let recipes = serde_json::from_str(&resp).unwrap();
+    let recipes = serde_json::from_str(&resp).map_err(Error::from)?;
     Ok(IndexPageState {
         catagories: info.get_extra().catagories,
         recipes,
         filters: "".to_string(),
         catagory_filter: info.path,
-        default_img: (DEFAULT_IMAGE_ENDPOINT).to_string(),
     })
 }
 
@@ -152,19 +144,17 @@ struct HelperState {
 }
 
 #[engine_only_fn]
-async fn get_build_paths() -> BuildPaths {
+async fn get_build_paths() -> Result<BuildPaths, Error> {
     let resp = reqwest::get(&*CATAGORIES_ENDPOINT)
-        .await
-        .unwrap()
+        .await?
         .text()
-        .await
-        .unwrap();
-    let catagories: Vec<Catagory> = serde_json::from_str(&resp).unwrap();
+        .await?;
+    let catagories: Vec<Catagory> = serde_json::from_str(&resp)?;
     let paths = BuildPaths {
         paths: catagories.clone().into_iter().map(|x| x.name).collect(),
         extra: HelperState { catagories }.into(),
     };
-    paths
+    Ok(paths)
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, UnreactiveState)]

@@ -32,6 +32,62 @@ html, body, #root {
     display: none;
 }
 
+.full_recipe_images img
+{
+    width: 100px;
+}
+
+.full_recipe_images img:hover
+{
+    transform: scale(3,3) translate(33%, 33%);
+}
+
+textarea
+{
+    width: 100%;
+    height: 6rem;
+}
+
+.preview_image
+{
+    width: 50px;
+    height: 50px;
+}
+
+.form
+{
+    display: flex;
+    align-items: center;
+}
+
+.form-row
+{
+    display: flex;
+}
+.label-ingredient-div
+{
+    justify-content: space-around;
+    display: flex;
+}
+.ingredient-div
+{
+    display: flex;
+}
+
+.form-block
+{
+    display: flex;
+    flex-direction: column;
+    margin: 5px;
+    flex-basis: 100%;
+}
+
+.form-block label
+{
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
 .navbar .navbar_links_open
 {
     display: block;

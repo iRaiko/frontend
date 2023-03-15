@@ -79,7 +79,7 @@ async fn get_build_state(_info: StateGeneratorInfo<()>) -> Result<NavbarState, B
         .text()
         .await?;
     let catagories: Vec<Catagory> = serde_json::from_str(&resp).unwrap();
-    let mut paths: Vec<String> = catagories.into_iter().map(|x| x.name).collect();
+    let paths: Vec<String> = catagories.into_iter().map(|x| x.name).collect();
     Ok(NavbarState { paths, logo: (LOGO_ENDPOINT).to_string() })
 }
 

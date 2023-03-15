@@ -2,7 +2,9 @@ use perseus::prelude::*;
 use serde::{Deserialize, Serialize};
 use sycamore::prelude::*;
 use crate::components::layout::Layout;
+use crate::errors::Error;
 use crate::{RECIPES_ENDPOINT, BACKEND};
+use crate::EndpointsRx;
 
 // Initialize our app with the `perseus_warp` package's default server (fully
 // customizable)
@@ -11,14 +13,16 @@ pub fn get_template<G: Html>() -> Template<G> {
         .build_paths_fn(get_paths)
         .build_state_fn(get_index_build_state)
         .revalidate_after("30s")
-        .view_with_state(index_page)
+        .view_with_state(recipe_page)
         .incremental_generation()
         .build()
 }
 
 // EXCERPT_START
 #[auto_scope]
-fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
+fn recipe_page<G: Html>(cx: Scope, props: &RecipePropsRx) -> View<G> 
+{
+    let global_state = Reactor::<G>::from_cx(cx).get_global_state::<EndpointsRx>(cx);
     let amount = create_signal(cx, props.recipe.base_amount.get().to_string());
     let a = (*props.ingredients.get()).clone();
     let string_to_f32 = create_memo(cx, || amount.get().parse::<f32>());
@@ -38,16 +42,25 @@ fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
             .collect::<Vec<_>>(),
     );
 
+    let link_to_update_page = format!("update/{}", &props.recipe.name);
+
     view! { cx,
         Layout(title = "test")
         {
+                a(href = link_to_update_page) { "test" }
                 h1 { (props.recipe.name)}
+                div(class = "full_recipe_images"){
                 Indexed(
                     iterable = &props.images,
-                    view = |cx, x| view! { cx,
-                        li { "haha yes" }
+                    view = |cx, x|
+                    {
+                        let image_endpoint = global_state.image_endpoint.clone(); 
+                        view! { cx,
+                            img(src= format!("{}/{}", image_endpoint, x.name))
+                        }
                     }
                 )
+                }
                 div(style = "white-space: pre-line"){
                 (if let Some(information) = &*props.recipe.information.get()
                 {
@@ -62,11 +75,9 @@ fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
                     input(
                         placeholder = props.recipe.base_amount.get().to_string(),
                         type="number",
-                        min="0",
-                        pattern=r"/\d+[[.,]?\d*]?/",
-                        step="0.1",
                         bind:value = amount
-                    ) { (props.recipe.unit_name) }
+                    ) 
+                    span { (props.recipe.unit_name) }
 
                     Indexed(
                         iterable = ingredients,
@@ -90,50 +101,39 @@ fn index_page<G: Html>(cx: Scope, props: &IndexPropsRx) -> View<G> {
     }
 }
 
-// This function will be run when you build your app, to generate default state
-// ahead-of-time
 #[engine_only_fn]
 async fn get_index_build_state(
     info: StateGeneratorInfo<()>,
-) -> Result<Long, BlamedError<reqwest::Error>> {
+) -> Result<RecipeProps, BlamedError<Error>> {
     let split = info.path.split("/");
     let resp = reqwest::get(format!(
         "{}longs/{}",
         &*BACKEND,
-        split.last().unwrap()
+        split.last().unwrap_or_default()
     ))
-    .await?
+    .await.map_err(Error::from)?
     .text()
-    .await?;
-    let resp = serde_json::from_str(&resp).unwrap();
+    .await.map_err(Error::from)?;
+    let resp = serde_json::from_str(&resp).map_err(Error::from)?;
 
     Ok(resp)
 }
-// EXCERPT_END
-
-fn about_page<G: Html>(cx: Scope) -> View<G> {
-    view! { cx,
-        p { "This is an example webapp created with Perseus!" }
-    }
-}
 
 #[engine_only_fn]
-async fn get_paths() -> BuildPaths {
+async fn get_paths() -> Result<BuildPaths, Error> {
     let resp = reqwest::get(format!("{}/all_names", &*RECIPES_ENDPOINT))
-        .await
-        .unwrap()
+        .await?
         .text()
-        .await
-        .unwrap();
-    BuildPaths {
-        paths: serde_json::from_str(&resp).unwrap(),
+        .await?;
+    Ok(BuildPaths {
+        paths: serde_json::from_str(&resp)?,
         extra: ().into(),
-    }
+    })
 }
 
 #[derive(Serialize, Deserialize, Clone, ReactiveState)]
-#[rx(alias = "IndexPropsRx")]
-pub struct Long {
+#[rx(alias = "RecipePropsRx")]
+pub struct RecipeProps {
     #[rx(nested)]
     recipe: Recipe,
     ingredients: Vec<IngredientAndAmount>,

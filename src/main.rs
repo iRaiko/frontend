@@ -1,7 +1,10 @@
 mod components;
 mod error_views;
 mod capsules;
+mod errors;
 mod templates;
+use std::env::VarError;
+
 use dotenvy::dotenv;
 use serde::{Serialize, Deserialize};
 use perseus::{prelude::*, state::GlobalStateCreator};
@@ -19,15 +22,49 @@ lazy_static!
     pub static ref SHORTS_ENDPOINT: String = [&BACKEND, "shorts"].concat();
     pub static ref INGREDIENTS_ENDPOINT: String = [&BACKEND, "ingredients"].concat();
     pub static ref RECIPES_ENDPOINT: String = [&BACKEND, "recipes"].concat();
-    pub static ref ADD_INGREDIENTS_ENDPOINT: String = [&RECIPES_ENDPOINT, "/add_ingredient"].concat();
+    pub static ref RECIPE_INGREDIENTS_ENDPOINT: String = [&RECIPES_ENDPOINT, "/ingredients"].concat();
+    pub static ref ADD_IMAGES_ENDPOINT: String = [&RECIPES_ENDPOINT, "/add_image"].concat();
     pub static ref CATAGORIES_ENDPOINT: String = [&BACKEND, "catagories"].concat();
     pub static ref IMAGES_ENDPOINT: String = [&BACKEND, "images"].concat();
     pub static ref DEFAULT_IMAGE_ENDPOINT: String = [&IMAGES_ENDPOINT, "/", &DEFAULT_IMAGE].concat();
     pub static ref LOGO_ENDPOINT: String = [&IMAGES_ENDPOINT, "/", &LOGO].concat();
 }
 
+pub fn get_global_state_creator() -> GlobalStateCreator
+{
+    GlobalStateCreator::new()
+        .build_state_fn(get_build_state)
+}
 
-#[perseus::main(perseus_warp::dflt_server)]
+#[derive(Serialize, Deserialize, ReactiveState, Clone)]
+#[rx(alias = "EndpointsRx")]
+pub struct Endpoints
+{
+    pub default_image: String,
+    pub image_endpoint: String,
+    pub units_endpoint: String,
+    pub recipe_endpoint: String,
+    pub catagories_endpoint: String,
+    pub ingredients_endpoint: String,
+    pub recipe_ingredient_endpoint: String,
+}
+
+#[engine_only_fn]
+async fn get_build_state(_locale: String) -> Result<Endpoints, VarError>
+{
+    Ok(Endpoints
+    {
+        default_image: DEFAULT_IMAGE_ENDPOINT.to_string(),
+        image_endpoint: IMAGES_ENDPOINT.to_string(),
+        catagories_endpoint: CATAGORIES_ENDPOINT.to_string(),
+        recipe_endpoint: RECIPES_ENDPOINT.to_string(),
+        ingredients_endpoint: INGREDIENTS_ENDPOINT.to_string(),
+        units_endpoint: UNITS_ENDPOINT.to_string(),
+        recipe_ingredient_endpoint: RECIPE_INGREDIENTS_ENDPOINT.to_string(),
+    })
+}
+
+#[perseus::main(perseus_axum::dflt_server)]
 pub fn main<G: Html>() -> PerseusApp<G> {
     dotenv().ok();
     PerseusApp::new()
@@ -35,7 +72,9 @@ pub fn main<G: Html>() -> PerseusApp<G> {
         .template(crate::templates::shorts::get_template())
         .template(crate::templates::recipe::get_template())
         .template(crate::templates::new_recipe::get_template())
+        .template(crate::templates::update_recipe::get_template())
         .capsule_ref(&*crate::capsules::navbar::NAVBAR)
+        .global_state_creator(get_global_state_creator())
         .index_view(|cx|
         {
             sycamore::view! { cx, 
