@@ -1,6 +1,7 @@
 use perseus::prelude::*;
 use serde::{Deserialize, Serialize};
 use sycamore::prelude::*;
+use crate::common::{IngredientAndAmount, Recipe};
 use crate::components::layout::Layout;
 use crate::errors::Error;
 use crate::{RECIPES_ENDPOINT, BACKEND};
@@ -144,22 +145,4 @@ pub struct RecipeProps {
 pub struct Image {
     name: String,
     location: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub struct IngredientAndAmount {
-    recipe_name: String,
-    ingredient_name: String,
-    amount: f32,
-    unit_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, ReactiveState)]
-pub struct Recipe {
-    name: String,
-    catagory_name: String,
-    information: Option<String>,
-    base_amount: f32,
-    unit_name: String,
-    preparation: Option<String>,
 }

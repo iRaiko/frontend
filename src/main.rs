@@ -3,6 +3,7 @@ mod error_views;
 mod capsules;
 mod errors;
 mod templates;
+mod common;
 use std::env::VarError;
 
 use dotenvy::dotenv;
@@ -47,6 +48,41 @@ pub struct Endpoints
     pub catagories_endpoint: String,
     pub ingredients_endpoint: String,
     pub recipe_ingredient_endpoint: String,
+    #[rx(nested)]
+    pub app_state: AppState,
+}
+
+#[derive(Serialize, Deserialize, ReactiveState, Clone)]
+#[rx(alias = "AppStateRx")]
+pub struct AppState
+{
+    pub state: bool,
+    pub session_key: Option<String>,
+}
+
+#[cfg(client)]
+impl AppStateRx
+{
+    pub async fn verify_key(&self)
+    {
+        if let Some(key) = &*self.session_key.get()
+        {
+            let response = gloo_net::http::Request::post("http://192.168.68.100:8000/session/").body(key).mode(gloo_net::http::RequestMode::Cors).send().await;
+            if let Ok(response_body) = response
+            {
+                if response_body.ok()
+                {
+                    self.state.set(true)
+                }
+            }
+            else {
+                self.state.set(false)
+            }
+        }
+        else {
+            self.state.set(false)
+        }
+    }
 }
 
 #[engine_only_fn]
@@ -61,6 +97,7 @@ async fn get_build_state(_locale: String) -> Result<Endpoints, VarError>
         ingredients_endpoint: INGREDIENTS_ENDPOINT.to_string(),
         units_endpoint: UNITS_ENDPOINT.to_string(),
         recipe_ingredient_endpoint: RECIPE_INGREDIENTS_ENDPOINT.to_string(),
+        app_state: AppState { state: false, session_key: None},
     })
 }
 

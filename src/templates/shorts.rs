@@ -1,4 +1,4 @@
-use crate::{components::layout::Layout, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT, errors::Error, EndpointsRx};
+use crate::{components::layout::Layout, SHORTS_ENDPOINT, CATAGORIES_ENDPOINT, errors::Error, EndpointsRx, common::{IngredientAndAmount, Recipe, Catagory}};
 use perseus::{prelude::*, state::rx_collections::RxVec};
 use sycamore::prelude::*;
 use serde::{Serialize, Deserialize};
@@ -11,11 +11,6 @@ pub struct IndexPageState {
     recipes: RxVec<Short>,
     filters: String,
     catagory_filter: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Eq)]
-pub struct Catagory {
-    name: String,
 }
 
 #[auto_scope]
@@ -54,8 +49,11 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                                 {
                                     (if let Some(ref image_location) = &image_loc
                                     {
-                                        let location_clone = image_location.clone();
-                                        view! { cx, img(src=location_clone)}
+                                        let image_endpoint = global_state.image_endpoint.clone(); 
+                                        let image = image_location.clone();
+                                        view! { cx,
+                                            img(src= format!("{}/{}", image_endpoint, image))
+                                        }
                                     }
                                     else
                                     {
@@ -79,7 +77,7 @@ pub fn index_page<G: Html>(cx: Scope, props: &IndexPageStateRx) -> View<G> {
                                             iterable = ingredients,
                                             view = |cx, ingredient| 
                                             view! {cx, 
-                                                li { (format!("{} {} {}", ingredient.amount, ingredient.unit, ingredient.name)) } 
+                                                li { (format!("{} {} {}", ingredient.amount, ingredient.unit_name, ingredient.ingredient_name)) } 
                                             }
                                         )
                                     }
@@ -104,7 +102,7 @@ pub fn get_template<G: Html>() -> Template<G> {
     Template::build("index")
         .build_paths_fn(get_build_paths)
         .build_state_fn(get_build_state)
-        .revalidate_after("24h")
+        .revalidate_after("30s")
         .view_with_state(index_page)
         .incremental_generation()
         .build()
@@ -162,21 +160,4 @@ pub struct Short {
     recipe: Recipe,
     ingredients: Vec<IngredientAndAmount>,
     image: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub struct IngredientAndAmount {
-    name: String,
-    amount: f32,
-    unit: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub struct Recipe {
-    name: String,
-    catagory_name: String,
-    information: Option<String>,
-    base_amount: f32,
-    unit_name: String,
-    preparation: Option<String>,
 }

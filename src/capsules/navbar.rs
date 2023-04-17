@@ -2,6 +2,7 @@ use sycamore::prelude::*;
 use perseus::prelude::*;
 use serde::{Deserialize, Serialize};
 use lazy_static::lazy_static;
+use crate::common::Catagory;
 
 use crate::{CATAGORIES_ENDPOINT, LOGO_ENDPOINT};
 
@@ -81,9 +82,4 @@ async fn get_build_state(_info: StateGeneratorInfo<()>) -> Result<NavbarState, B
     let catagories: Vec<Catagory> = serde_json::from_str(&resp).unwrap();
     let paths: Vec<String> = catagories.into_iter().map(|x| x.name).collect();
     Ok(NavbarState { paths, logo: (LOGO_ENDPOINT).to_string() })
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Hash, Eq)]
-pub struct Catagory {
-    name: String,
 }

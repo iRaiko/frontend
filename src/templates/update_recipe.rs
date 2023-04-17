@@ -5,12 +5,14 @@ use perseus::{
 use serde::{Deserialize, Serialize};
 use sycamore::{prelude::*, rt::JsCast};
 use web_sys::{ RequestMode, RequestInit,   Url, HtmlFormElement, HtmlDialogElement, HtmlInputElement, HtmlDivElement, HtmlImageElement};
-use crate::{ BACKEND, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT};
+use crate::{ BACKEND, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, components::{ingredient_list::IngredientListCompotent, login::Login}, common::{Recipe, Ingredient, Unit, Catagory, Image}};
 use crate::components::layout::Layout;
 use web_sys::FormData as fd;
 use std::borrow::Borrow;
 use crate::errors::Error;
 use crate::EndpointsRx;
+
+use crate::common::{IngredientAndAmount, IngredientAndAmountPerseusRxIntermediate};
 
 pub fn get_template<G: Html>() -> Template<G> {
     Template::build("update")
@@ -269,26 +271,34 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                             .json(&t.recipe).unwrap().send().await;
 
                         // check the up to date list with the old list to see if there are any new entries and add them if there are
-                        for i in &*t.ingredients
-                        {
-                            if !old_recipe.long.ingredients.contains(&i)
-                            {
-                                let resp = gloo_net::http::Request::post(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await;
-                            }
-                            // let resp = gloo_net::http::Request::post(&add_ingredient_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await.unwrap();
-                        }
-                        // check the old list if there are ingredients that are not in the up to date list and remove them if there are
+                        // for i in &*t.ingredients
+                        // {
+                        //     if !old_recipe.long.ingredients.contains(&i)
+                        //     {
+                        //         let resp = gloo_net::http::Request::post(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await;
+                        //     }
+                        //     // let resp = gloo_net::http::Request::post(&add_ingredient_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await.unwrap();
+                        // }
+                        // // check the old list if there are ingredients that are not in the up to date list and remove them if there are
+                        // for i in old_recipe.long.ingredients.iter()
+                        // {
+                        //     if !t.ingredients.contains(&i)
+                        //     {
+                        //         // delete
+                        //         let resp = gloo_net::http::Request::delete(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await;
+                        //     }
+                        // }
                         for i in old_recipe.long.ingredients.iter()
                         {
-                            if !t.ingredients.contains(&i)
-                            {
-                                // delete
-                                let resp = gloo_net::http::Request::delete(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await;
-                            }
+                            let resp = gloo_net::http::Request::delete(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await;
+                        }
+                        for i in &*t.ingredients
+                        {
+                            let resp = gloo_net::http::Request::post(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await;
                         }
                         for i in 0..files.length()
                         {
-                            let recipe_image = Recipe_Image { recipe_name: recipe_name.clone(), image_name: files.get(i).unwrap().name() };
+                            let recipe_image = RecipeImage { recipe_name: recipe_name.clone(), image_name: files.get(i).unwrap().name() };
                             // let resp = gloo_net::http::Request::post(&add_image_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&recipe_image).unwrap().send().await.unwrap();
                         }
                     });
@@ -307,6 +317,8 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
     view! {cx,
         Layout(title = "stuff") 
         {
+            Login(state = &global_state.app_state)
+            {
             (dialog)
             (unit_datalist)
             (ingredient_datalist)
@@ -346,7 +358,8 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                 }
             }
             div(class = "form-row") {
-                div(class = "form-block") {
+                div(class = "form-block") 
+                {
                     IngredientListCompotent(recipe_name = &props.recipe.name, ingredients=&props.ingredients)
                 }
             }
@@ -362,7 +375,7 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
 
                 while let Some(node) = &preview.first_child()
                 {
-                    &preview.remove_child(&node);
+                    let _ = preview.remove_child(&node);
                 }
 
                 for i in 0..files.length()
@@ -376,13 +389,13 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
 
                     image.set_class_name("preview_image");
 
-                    list_item.append_child(&para);
-                    list_item.append_child(&image);
-                    list.append_child(&list_item);
+                    let _ = list_item.append_child(&para);
+                    let _ = list_item.append_child(&image);
+                    let _ = list.append_child(&list_item);
                 }
 
 
-                preview.append_child(&list);
+                let _ = preview.append_child(&list);
             })
                 div(id = "preview"){}
             }
@@ -394,82 +407,13 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                 {
                     let test = dialog_ref.get::<HydrateNode>();
                     let dialog_element: HtmlDialogElement = test.unchecked_into();
-                    dialog_element.show_modal();
+                    let _ = dialog_element.show_modal();
                 }
             }) { "Submit" }
         }}
     }
-}
-}
-
-
-#[component]
-fn IngredientListCompotent<'a, G: Html>(cx: Scope<'a>, props: IngredientListProps<'a>) -> View<G> {
-    view! { cx,
-        div(class = "label-ingredient-div") {
-            label(for = "information_text_area") { "Amount" }
-            label(for = "information_text_area") { "Unit" }
-            label(for = "information_text_area") { "Name" }
-        }
-        ul(style = "list-style-type: none; padding: 0")
-        {
-            Indexed(
-                iterable = &props.ingredients,
-                view = |cx, x|
-                {
-                    let amount_str = create_signal(cx, x.amount.get().to_string());
-                    let amount_ref = create_ref(cx, x.amount);
-                    let _ = create_effect(cx, ||
-                        {
-                            match amount_str.get().parse::<f32>()
-                            {
-                                Ok(float) => amount_ref.set(float),
-                                Err(_) => amount_ref.set(1.)
-                            };
-                        });
-                    let unit_ref = create_ref(cx, x.unit_name);
-                    let name_ref = create_ref(cx, x.ingredient_name);
-                    view! { cx,
-                        li(style = "padding-bottom: 5px; display:flex;") {             
-                            div(class = "ingredient-div") {
-                                input(bind:value = amount_str, placeholder="Amount", required=true)
-                            }
-                            div(class = "ingredient-div") {
-                                input(bind:value = unit_ref, placeholder = "Unit", list="unit_datalist", required = true)
-                            }
-                            div(class = "ingredient-div") {
-                                input(bind:value = name_ref, placeholder = "Ingredient", list="ingredient_datalist", required = true)
-                            }
-                        }
-                    }
-                }
-            )
-        }
-        button(type="button", on:click=
-            {
-                move |_|
-                {
-                    let ingredient = IngredientAndAmountPerseusRxIntermediate::new(props.recipe_name.clone(), "", 1.0, "");
-                    props.ingredients.modify().push(ingredient);
-                }
-            }) { "Add Ingredient" }
-        
-        button(type="button", on:click=
-            {
-                move |_|
-                {
-                    props.ingredients.modify().pop();
-                }
-            }) { "Remove Ingredient" }
-        }
     }
-   
-
-#[derive(Prop)]
-struct IngredientListProps<'a> 
-{   
-    recipe_name: &'a RcSignal<String>,
-    ingredients: &'a RxVecNestedRx<IngredientAndAmount>,
+}
 }
 
 #[engine_only_fn]
@@ -536,24 +480,6 @@ pub struct FormData
     catagories: Vec<Catagory>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-struct Catagory
-{
-    name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-struct Ingredient
-{
-    name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-struct Unit
-{
-    name: String,
-}
-
 #[derive(Serialize, Deserialize, Clone, ReactiveState, Debug)]
 pub struct Long {
     #[rx(nested)]
@@ -563,59 +489,10 @@ pub struct Long {
     images: Vec<Image>,
 }
 
-impl IngredientAndAmountPerseusRxIntermediate {
-    fn new(
-        recipe_name: RcSignal<String>,
-        ingredient_name: &str,
-        amount: f32,
-        unit_name: &str,
-    ) -> IngredientAndAmountPerseusRxIntermediate 
-    {
-        let ingredient_name = create_rc_signal(ingredient_name.to_owned());
-        let amount = create_rc_signal(amount);
-        let unit_name = create_rc_signal(unit_name.to_owned());
-        IngredientAndAmountPerseusRxIntermediate {
-            recipe_name,
-            ingredient_name,
-            amount,
-            unit_name,
-        }
-    }
-}
-
-impl PartialEq for IngredientAndAmountPerseusRxIntermediate {
-    fn eq(&self, other: &Self) -> bool {
-        self.recipe_name.get() == other.recipe_name.get()
-            && self.ingredient_name.get() == other.ingredient_name.get()
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct Image {
-    name: String,
-    location: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, ReactiveState, Debug)]
-pub struct IngredientAndAmount {
-    recipe_name: String,
-    ingredient_name: String,
-    amount: f32,
-    unit_name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, ReactiveState, Debug)]
-pub struct Recipe {
-    name: String,
-    catagory_name: String,
-    information: Option<String>,
-    base_amount: f32,
-    unit_name: String,
-    preparation: Option<String>,
-}
 #[derive(Serialize, Deserialize)]
-pub struct Recipe_Image
+pub struct RecipeImage
 {
     recipe_name: String,
     image_name: String,
 }
+
