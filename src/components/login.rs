@@ -30,7 +30,7 @@ pub fn Login<'a, G: Html>(cx: Scope<'a>, LoginProps { state, children }: LoginPr
                         spawn_local_scoped(cx, async move 
                         { 
                             let login = LoginInformation { username: "Heuts".to_string(), password: (*password.get()).clone() };
-                            let response = gloo_net::http::Request::post("http://192.168.68.100:8000/login/").mode(gloo_net::http::RequestMode::Cors).json(&login).unwrap().send().await;
+                            let response = gloo_net::http::Request::post("http://192.168.68.105:8000/login/").mode(gloo_net::http::RequestMode::Cors).json(&login).unwrap().send().await;
                             if let Ok(response_body) = response
                             {
                                 if response_body.ok()

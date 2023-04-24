@@ -5,7 +5,7 @@ use perseus::{
 use serde::{Deserialize, Serialize};
 use sycamore::{prelude::*, rt::JsCast};
 use web_sys::{RequestMode, RequestInit, FileReader, Node, Url, HtmlFormElement, HtmlDialogElement, HtmlInputElement, HtmlDivElement, HtmlImageElement};
-use crate::{capsules::navbar::NAVBAR, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, RECIPE_INGREDIENTS_ENDPOINT, IMAGES_ENDPOINT, ADD_IMAGES_ENDPOINT, components::ingredient_list::IngredientListCompotent, common::{IngredientAndAmount, Ingredient, Catagory, Unit, Recipe}};
+use crate::{capsules::navbar::NAVBAR, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, RECIPE_INGREDIENTS_ENDPOINT, IMAGES_ENDPOINT, RECIPE_IMAGES_ENDPOINT, components::ingredient_list::IngredientListCompotent, common::{IngredientAndAmount, Ingredient, Catagory, Unit, Recipe}};
 use crate::components::layout::Layout;
 use web_sys::FormData as fd;
 use std::borrow::Borrow;
@@ -212,7 +212,7 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                         let mut opts = RequestInit::new();
                         opts.method("POST");
                         opts.mode(RequestMode::Cors);
-                        let url = "http://192.168.68.100:8000/images";
+                        let url = "http://192.168.68.105:8000/images";
         
                         let form = fd::new().unwrap();
                         for i in 0..files.length()
@@ -410,7 +410,7 @@ async fn get_form_build_state(_: StateGeneratorInfo<()>, _req: Request) -> Resul
         ingredients_endpoint: INGREDIENTS_ENDPOINT.to_string(),
         add_ingredient_to_recipe_endpoint: RECIPE_INGREDIENTS_ENDPOINT.to_string(),
         images_endpoint: IMAGES_ENDPOINT.to_string(),
-        add_image_to_recipe_endpoint: ADD_IMAGES_ENDPOINT.to_string(),
+        add_image_to_recipe_endpoint: RECIPE_IMAGES_ENDPOINT.to_string(),
     })
 }
 

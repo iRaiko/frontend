@@ -24,7 +24,7 @@ lazy_static!
     pub static ref INGREDIENTS_ENDPOINT: String = [&BACKEND, "ingredients"].concat();
     pub static ref RECIPES_ENDPOINT: String = [&BACKEND, "recipes"].concat();
     pub static ref RECIPE_INGREDIENTS_ENDPOINT: String = [&RECIPES_ENDPOINT, "/ingredients"].concat();
-    pub static ref ADD_IMAGES_ENDPOINT: String = [&RECIPES_ENDPOINT, "/add_image"].concat();
+    pub static ref RECIPE_IMAGES_ENDPOINT: String = [&RECIPES_ENDPOINT, "/image"].concat();
     pub static ref CATAGORIES_ENDPOINT: String = [&BACKEND, "catagories"].concat();
     pub static ref IMAGES_ENDPOINT: String = [&BACKEND, "images"].concat();
     pub static ref DEFAULT_IMAGE_ENDPOINT: String = [&IMAGES_ENDPOINT, "/", &DEFAULT_IMAGE].concat();
@@ -48,6 +48,7 @@ pub struct Endpoints
     pub catagories_endpoint: String,
     pub ingredients_endpoint: String,
     pub recipe_ingredient_endpoint: String,
+    pub recipe_image_endpoint: String,
     #[rx(nested)]
     pub app_state: AppState,
 }
@@ -67,7 +68,7 @@ impl AppStateRx
     {
         if let Some(key) = &*self.session_key.get()
         {
-            let response = gloo_net::http::Request::post("http://192.168.68.100:8000/session/").body(key).mode(gloo_net::http::RequestMode::Cors).send().await;
+            let response = gloo_net::http::Request::post("http://192.168.68.105:8000/session/").body(key).mode(gloo_net::http::RequestMode::Cors).send().await;
             if let Ok(response_body) = response
             {
                 if response_body.ok()
@@ -97,6 +98,7 @@ async fn get_build_state(_locale: String) -> Result<Endpoints, VarError>
         ingredients_endpoint: INGREDIENTS_ENDPOINT.to_string(),
         units_endpoint: UNITS_ENDPOINT.to_string(),
         recipe_ingredient_endpoint: RECIPE_INGREDIENTS_ENDPOINT.to_string(),
+        recipe_image_endpoint: RECIPE_IMAGES_ENDPOINT.to_string(),
         app_state: AppState { state: false, session_key: None},
     })
 }

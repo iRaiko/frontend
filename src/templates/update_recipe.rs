@@ -4,8 +4,8 @@ use perseus::{
 };
 use serde::{Deserialize, Serialize};
 use sycamore::{prelude::*, rt::JsCast};
-use web_sys::{ RequestMode, RequestInit,   Url, HtmlFormElement, HtmlDialogElement, HtmlInputElement, HtmlDivElement, HtmlImageElement};
-use crate::{ BACKEND, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, components::{ingredient_list::IngredientListCompotent, login::Login}, common::{Recipe, Ingredient, Unit, Catagory, Image}};
+use web_sys::{ RequestMode, RequestInit,   Url, HtmlFormElement, HtmlDialogElement, HtmlInputElement, HtmlDivElement, HtmlImageElement, File, Blob};
+use crate::{ BACKEND, UNITS_ENDPOINT, INGREDIENTS_ENDPOINT, CATAGORIES_ENDPOINT, RECIPES_ENDPOINT, components::{ingredient_list::IngredientListCompotent, login::Login, file_selector::FileSelector}, common::{Recipe, Ingredient, Unit, Catagory, Image}};
 use crate::components::layout::Layout;
 use web_sys::FormData as fd;
 use std::borrow::Borrow;
@@ -214,7 +214,6 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
     };
 
     let dialog_ref = create_node_ref(cx);
-    let file_input_ref = create_node_ref(cx);
 
     let dialog = view! { cx,
         dialog(ref=dialog_ref, id = "confirm_dialog") {
@@ -229,26 +228,6 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                     let old_recipe = old_recipe.clone();
                     spawn_local_scoped(cx_t, async move 
                     {                                
-                        let window = web_sys::window().unwrap();
-                        let hydrate_node = file_input_ref.get::<HydrateNode>();
-                        let input_element: HtmlInputElement = hydrate_node.unchecked_into();          
-                        let files = input_element.files().unwrap(); // Safe to unwrap since the type = file
-                        let mut opts = RequestInit::new();
-                        opts.method("PATCH");
-                        opts.mode(RequestMode::Cors);
-                        let url = &global_state.image_endpoint.get();
-        
-                        let form = fd::new().unwrap();
-                        for i in 0..files.length()
-                        {
-                            // form.append_with_blob_and_filename("file", &files.get(i).unwrap(), &files.get(i).unwrap().name());
-                        }
-                        opts.body(Some(form.as_ref()));
-        
-                        let request = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
-        
-                        // let resp = window.fetch_with_request(&request);
-
                         if !catagories.get().iter().any(|x| x.name == *props.recipe.catagory_name.get())
                         {
                             let catagory = Catagory { name: (*props.recipe.catagory_name.get()).clone()};
@@ -270,36 +249,45 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                         let resp = gloo_net::http::Request::patch(&global_state.recipe_endpoint.get()).mode(gloo_net::http::RequestMode::Cors)
                             .json(&t.recipe).unwrap().send().await;
 
-                        // check the up to date list with the old list to see if there are any new entries and add them if there are
-                        // for i in &*t.ingredients
-                        // {
-                        //     if !old_recipe.long.ingredients.contains(&i)
-                        //     {
-                        //         let resp = gloo_net::http::Request::post(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await;
-                        //     }
-                        //     // let resp = gloo_net::http::Request::post(&add_ingredient_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await.unwrap();
-                        // }
-                        // // check the old list if there are ingredients that are not in the up to date list and remove them if there are
-                        // for i in old_recipe.long.ingredients.iter()
-                        // {
-                        //     if !t.ingredients.contains(&i)
-                        //     {
-                        //         // delete
-                        //         let resp = gloo_net::http::Request::delete(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await;
-                        //     }
-                        // }
+                        for i in &*t.images
+                        {
+                            if let Some(image_url) = &i.data
+                            {
+                                let window = web_sys::window().unwrap();
+                                let response: web_sys::Response = sycamore::futures::JsFuture::from(window.fetch_with_str(&image_url)).await.unwrap().unchecked_into();
+                                let blob: web_sys::Blob = sycamore::futures::JsFuture::from(response.blob().unwrap()).await.unwrap().unchecked_into();
+                                let mut opts = RequestInit::new();
+                                opts.method("POST");
+                                opts.mode(RequestMode::Cors);
+                                let url = &global_state.image_endpoint.get();
+                
+                                let form = fd::new().unwrap();
+                                form.append_with_blob_and_filename("file", &blob, &i.image_name);
+
+                                opts.body(Some(form.as_ref()));
+                                let request = web_sys::Request::new_with_str_and_init(&url, &opts).unwrap();
+                
+                                let resp = window.fetch_with_request(&request);
+                            }
+                        }
                         for i in old_recipe.long.ingredients.iter()
                         {
                             let resp = gloo_net::http::Request::delete(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await;
                         }
+
                         for i in &*t.ingredients
                         {
                             let resp = gloo_net::http::Request::post(&global_state.recipe_ingredient_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&i).unwrap().send().await;
                         }
-                        for i in 0..files.length()
+                        
+                        for i in old_recipe.long.images.iter()
                         {
-                            let recipe_image = RecipeImage { recipe_name: recipe_name.clone(), image_name: files.get(i).unwrap().name() };
-                            // let resp = gloo_net::http::Request::post(&add_image_to_recipe_endpoint.get()).mode(gloo_net::http::RequestMode::NoCors).json(&recipe_image).unwrap().send().await.unwrap();
+                            let resp = gloo_net::http::Request::delete(&global_state.recipe_image_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await.unwrap();
+                        }
+
+                        for i in &*t.images
+                        {
+                            let resp = gloo_net::http::Request::post(&global_state.recipe_image_endpoint.get()).mode(gloo_net::http::RequestMode::Cors).json(&i).unwrap().send().await.unwrap();
                         }
                     });
                 }
@@ -364,40 +352,10 @@ fn form_page<G: Html>(cx: Scope, props: &mut FormDataRx) -> View<G>
                 }
             }
             div(class = "form-row") {
-            input(ref=file_input_ref, type="file", accept="image/*", multiple=true, id="image_uploads", on:change = move |_|
-            {
-                let window = web_sys::window().unwrap();
-                let document = window.document().unwrap();
-                let input: HtmlInputElement = document.get_element_by_id("image_uploads").unwrap().dyn_into().unwrap();
-                let preview: HtmlDivElement = document.get_element_by_id("preview").unwrap().dyn_into().unwrap();
-                let files = input.files().unwrap(); // Can unwrap here because input is of type file
-                let list = document.create_element("ol").unwrap();
-
-                while let Some(node) = &preview.first_child()
+                div(class = "form-block")
                 {
-                    let _ = preview.remove_child(&node);
+                    FileSelector(recipe_name = &props.recipe.name, images=&props.images)
                 }
-
-                for i in 0..files.length()
-                {
-                    let list_item = document.create_element("li").unwrap();
-                    let para = document.create_element("p").unwrap();
-                    para.set_text_content(Some(&files.get(i).unwrap().name()));
-
-                    let image: HtmlImageElement = document.create_element("img").unwrap().dyn_into().unwrap();
-                    image.set_src(&Url::create_object_url_with_blob(&files.get(i).unwrap()).unwrap());
-
-                    image.set_class_name("preview_image");
-
-                    let _ = list_item.append_child(&para);
-                    let _ = list_item.append_child(&image);
-                    let _ = list.append_child(&list_item);
-                }
-
-
-                let _ = preview.append_child(&list);
-            })
-                div(id = "preview"){}
             }
             button(type = "button", on:click = move |_| 
             {
@@ -486,7 +444,8 @@ pub struct Long {
     recipe: Recipe,
     #[rx(nested)]
     ingredients: RxVecNested<IngredientAndAmount>,
-    images: Vec<Image>,
+    #[rx(nested)]
+    images: RxVecNested<ImageFile>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -494,5 +453,15 @@ pub struct RecipeImage
 {
     recipe_name: String,
     image_name: String,
+    index: u32,
 }
 
+#[derive(Serialize, Deserialize, ReactiveState, Clone, Debug)]
+pub struct ImageFile
+{
+    pub recipe_name: String,
+    pub image_name: String,    
+    pub index: u32,
+    #[serde(skip)]
+    pub data: Option<String>,
+}

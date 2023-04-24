@@ -57,7 +57,7 @@ fn recipe_page<G: Html>(cx: Scope, props: &RecipePropsRx) -> View<G>
                     {
                         let image_endpoint = global_state.image_endpoint.clone(); 
                         view! { cx,
-                            img(src= format!("{}/{}", image_endpoint, x.name))
+                            img(src= format!("{}/{}", image_endpoint, x.image_name))
                         }
                     }
                 )
@@ -143,6 +143,7 @@ pub struct RecipeProps {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct Image {
-    name: String,
-    location: String,
+    recipe_name: String,
+    image_name: String,
+    index: u32,
 }
